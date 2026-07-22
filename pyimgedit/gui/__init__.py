@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import os
 import sys
+import webbrowser
 from functools import partial, wraps
 from http.client import HTTPResponse
 from pathlib import Path
@@ -13,6 +12,7 @@ from tkinter.filedialog import (
     askopenfilenames
 )
 from tkinter.messagebox import showerror
+from types import NoneType
 from typing import Callable, Sized, TypeVar
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -33,7 +33,7 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.progressbar import MDProgressBar
 from kivymd.uix.textfield import MDTextField
 
-from pyimgedit import IMGArchive, PACKAGE_DIR, __version__, bytes2units, it_file
+from pyimgedit import IMGArchive, PACKAGE_DIR, __version__, bytes2units
 from pyimgedit.gui.archive_data_view import ArchiveDataView, SELECTED_ICON_PADDING, get_item
 from pyimgedit.gui.archive_info_view import ArchiveInfoView
 from pyimgedit.gui.archive_log_view import ArchiveLogView
@@ -41,12 +41,14 @@ from pyimgedit.gui.custom_widgets import ActionIconButton, ThemeLightbulb
 
 T = TypeVar('T')
 T2 = TypeVar('T2')
-EXE_URL = 'https://github.com/NIKDISSV-Forever/UniversalIMG/blob/main/dist/Universal%20IMG.exe?raw=true'
+IS_FROZEN: bool = getattr(sys, 'frozen', False)
+RELEASE_EXE_URL_TEMPLATE = 'https://github.com/ndenissov/UniversalIMG/releases/download/v{version}/Universal.IMG.exe'
+PYPI_URL = 'https://pypi.org/project/UniversalIMG/'
 toast_mainthread = mainthread(toast)
 
 
 def version_check_message() -> str:
-    last_version_url = 'https://github.com/NIKDISSV-Forever/UniversalIMG/blob/main/version.txt?raw=true'
+    last_version_url = 'https://github.com/ndenissov/UniversalIMG/blob/main/version.txt?raw=true'
     try:
         with urlopen(last_version_url) as resp:
             resp: HTTPResponse
@@ -61,70 +63,111 @@ def version_check_message() -> str:
 
 
 @mainthread
-def ask_update(new_version: tuple[int]):
+def ask_update(new_version: tuple[int, ...]):
+    version_str = '.'.join(str(i) for i in new_version)
+    current_version_str = '.'.join(str(i) for i in __version__)
+    if not IS_FROZEN:
+        def open_pypi_page(*_):
+            webbrowser.open(PYPI_URL)
+            popup.dismiss()
+
+        popup = Popup(
+            title='New version available',
+            size_hint=(.6, .4),
+            separator_color='white',
+            content=MDBoxLayout(
+                MDLabel(
+                    text=f"A new version ({version_str}) is available.\n"
+                         f"You are currently running version {current_version_str}.",
+                    halign="center"
+                ),
+                MDBoxLayout(
+                    ActionIconButton(text='Open PyPI', icon='web', on_press=open_pypi_page),
+                    MDFlatButton(text='Dismiss', on_release=lambda x: popup.dismiss()),
+                    spacing=dp(10),
+                    padding=(0, dp(10), 0, 0)
+                ),
+                orientation='vertical',
+                padding=dp(15)
+            )
+        )
+        popup.open()
+        return
+
     @new_thread
     def init_download(button: BaseButton):
         popup.auto_dismiss = False
         text.text = text.text.removesuffix('Esc to cancel.\n')
         button.disabled = True
+        download_url = RELEASE_EXE_URL_TEMPLATE.format(version=version_str)
+        current_exe = Path(sys.executable)
+        out_file = current_exe.with_suffix(f'.upd{current_exe.suffix}')
 
-        out_file = Path(it_file)
-        out_file = out_file.with_suffix(f'.upd{out_file.suffix}')
-        with (open(out_file, 'wb') as out,
-              urlopen(EXE_URL) as download):
-            download: HTTPResponse
-            content_len = int(download.getheader('Content-Length', 0))
+        try:
+            with open(out_file, 'wb') as out, urlopen(download_url) as download:
+                download: HTTPResponse
+                content_len = int(download.getheader('Content-Length', 0))
 
-            _download_start = perf_counter() - 1
-            total = 0
-            if not content_len:
-                info.text = 'unable to get file size'
-                bar.type = 'indeterminate'
-                bar.start()
+                _download_start = perf_counter() - 1
+                total = 0
 
-                def update_text(download_len: int):
-                    nonlocal total
-                    total += download_len
-                    download_time = perf_counter() - _download_start
-                    info.text = (f'Time: {download_time:.0f}s | {bytes2units(total / download_time)}/s\n'
-                                 f'Downloaded: {bytes2units(total)} | +{bytes2units(download_len)}')
-            else:
-                content_len_s = bytes2units(content_len)
-                bar.max = content_len
+                if not content_len:
+                    info.text = 'unable to get file size'
+                    bar.type = 'indeterminate'
+                    bar.start()
 
-                def update_text(download_len):
-                    nonlocal total
-                    total += download_len
-                    bar.value = total
-                    download_time = perf_counter() - _download_start
-                    speed = total / download_time
-                    eta = (content_len - total) / speed
-                    info.text = (f'Time: {download_time:.0f}s | {bytes2units(speed)}/s\n'
-                                 f'ETA: {eta:.0f}s\n'
-                                 f'Downloaded: {total / content_len:.1%} {bytes2units(total)}/{content_len_s}')
+                    def update_text(download_len: int):
+                        nonlocal total
+                        total += download_len
+                        download_time = perf_counter() - _download_start
+                        info.text = (f'Time: {download_time:.0f}s | {bytes2units(total / download_time)}/s\n'
+                                     f'Downloaded: {bytes2units(total)}')
+                else:
+                    content_len_s = bytes2units(content_len)
+                    bar.max = content_len
 
-            for bytes in download:
-                update_text(out.write(bytes))
+                    def update_text(download_len: int):
+                        nonlocal total
+                        total += download_len
+                        bar.value = total
+                        download_time = perf_counter() - _download_start
+                        speed = total / max(download_time, 0.001)
+                        eta = (content_len - total) / speed if speed > 0 else 0
+                        info.text = (f'Time: {download_time:.0f}s | {bytes2units(speed)}/s\n'
+                                     f'ETA: {eta:.0f}s\n'
+                                     f'Downloaded: {total / content_len:.1%} {bytes2units(total)}/{content_len_s}')
+
+                while True:
+                    chunk = download.read(8192)
+                    if not chunk:
+                        break
+                    update_text(out.write(chunk))
+
             os.startfile(out_file.parent)
             popup.dismiss()
 
-    popup = Popup(title='New version exist',
-                  size_hint=(.5, .5),
-                  separator_color='white',
-                  content=MDBoxLayout(
-                      text := MDLabel(
-                          text="There is a newer official version of the program, "
-                               f"namely {'.'.join(str(i) for i in new_version)}, "
-                               f"you now have {'.'.join(str(i) for i in __version__)}.\n"
-                               "Esc to cancel.\n"),
-                      bar := MDProgressBar(size_hint_y=.1),
-                      MDBoxLayout(
-                          ActionIconButton(text='Update', icon='download', on_press=init_download),
-                          info := MDLabel()
-                      ),
-                      orientation='vertical'
-                  )
-                  )
+        except Exception as err:
+            info.text = f"Download failed: {err}"
+            button.disabled = False
+
+    popup = Popup(
+        title='New version exists',
+        size_hint=(.5, .5),
+        separator_color='white',
+        content=MDBoxLayout(
+            text := MDLabel(
+                text=f"There is a newer official version of the program: {version_str}.\n"
+                     f"You currently have {current_version_str}.\n"
+                     "Esc to cancel.\n"
+            ),
+            bar := MDProgressBar(size_hint_y=.1),
+            MDBoxLayout(
+                ActionIconButton(text='Update', icon='download', on_press=init_download),
+                info := MDLabel()
+            ),
+            orientation='vertical'
+        )
+    )
 
     popup.open()
 
@@ -152,7 +195,7 @@ def _act_button_process(func: Callable[[T], T2]):
     return _disable_brothers(func)
 
 
-def askstring(title: str, prompt: str, *, initialvalue: str, on_validate: Callable[[str], None] = None):
+def askstring(title: str, prompt: str, *, initialvalue: str, on_validate: Callable[[str], None] | NoneType = None):
     def _on_validate(_):
         if on_validate:
             on_validate(field.text)
@@ -457,14 +500,14 @@ class UniversalIMGApp(MDApp):
         except (ValueError, TypeError):
             return 100.
 
-    def progress_loop(self, iters, length: int = None):
+    def progress_loop(self, iters, length: int | NoneType = None):
         if length is None:
             length = len(iters) if isinstance(iters, Sized) else 100
         for i, v in enumerate(iters, 1):
             self.progress_bar.value = i / length * 100.
             yield v
 
-    def set_theme(self, button: ThemeLightbulb = None):
+    def set_theme(self, button: ThemeLightbulb | NoneType = None):
         if button is None:
             button = self.set_theme_button
         is_light, is_auto = button.get_theme()
