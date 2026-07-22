@@ -1,3 +1,0 @@
-darkdetect
-kivymd
-Kivy
