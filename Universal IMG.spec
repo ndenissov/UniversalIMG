@@ -6,7 +6,13 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('pyimgedit/icon.png', 'pyimgedit')],
-    hiddenimports=['kivymd.icon_definitions', 'kivymd.icon_definitions.md_icons', 'kivy_deps.angle'],
+    hiddenimports=[
+        'kivymd.icon_definitions',
+        'kivymd.icon_definitions.md_icons',
+        'kivy_deps.sdl2',
+        'kivy_deps.glew',
+        'kivy_deps.angle',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -14,6 +20,7 @@ a = Analysis(
     noarchive=False,
     optimize=2,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -30,7 +37,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
