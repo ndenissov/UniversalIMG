@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import os
 import os.path
@@ -7,14 +5,14 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from urllib.error import HTTPError
+from urllib.error import URLError, HTTPError
 from urllib.request import urlretrieve
 
 from html_table_parser.parser import HTMLTableParser
 
-__author__ = 'NIKDISSV'
+__author__ = 'Nikita Denissov'
 __licence__ = 'MIT'
-__version__ = (1, 2, 2)
+__version__ = (1, 3, 0)
 
 try:
     it_file = __file__
@@ -22,27 +20,42 @@ except NameError:
     it_file = sys.argv[0]
 
 PACKAGE_DIR = Path(it_file).parent
-EXECUTABLE_DOWNLOAD_URLS = (
-    'https://github.com/NIKDISSV-Forever/UniversalIMG/blob/main/pyimgedit/freimgedcs.exe?raw=true',
+IS_FROZEN: bool = getattr(sys, 'frozen', False)
+IS_PACKAGED: bool = not IS_FROZEN and ('site-packages' in PACKAGE_DIR.parts or 'dist-packages' in PACKAGE_DIR.parts)
 
-    # https://code.google.com/archive/p/freimgedcs
+# https://code.google.com/archive/p/freimgedcs
+EXECUTABLE_DOWNLOAD_URLS = (
     'https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/freimgedcs/freimgedcs.exe',
+    'https://web.archive.org/web/20160306121946if_/https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/freimgedcs/freimgedcs.exe'
 )
 
 
 def get_freimgedcs_exe() -> str:
     """Returns the path to freimgedcs.exe. If it doesn't exist then download it and return it"""
     status, fp = subprocess.getstatusoutput('where freimgedcs')
-    if not status:
+    if not status and Path(fp).exists():
         return fp
-    save_path = PACKAGE_DIR / 'freimgedcs.exe'
+    user_cache_dir = Path.home() / '.universalimg'
+    save_path = user_cache_dir / 'freimgedcs.exe'
+
     if save_path.is_file():
         return str(save_path)
+
+    # 3. Для обратной совместимости с разработкой: проверяем папку пакета
+    legacy_path = PACKAGE_DIR / 'freimgedcs.exe'
+    if legacy_path.is_file():
+        return str(legacy_path)
+
+    # 4. Если файла нет, создаем папку пользователя и скачиваем файл
+    user_cache_dir.mkdir(parents=True, exist_ok=True)
+
     for url in EXECUTABLE_DOWNLOAD_URLS:
         try:
             return urlretrieve(url, save_path)[0]
-        except HTTPError:
+        except (HTTPError, URLError):
             pass
+
+    raise RuntimeError("Failed to download freimgedcs.exe. Please ensure you have an active internet connection.")
 
 
 def bytes2units(bytes_size: float) -> str:
