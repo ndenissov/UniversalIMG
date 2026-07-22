@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import functools
 import math
+from types import NoneType
 from typing import SupportsInt
 
 from kivy.clock import mainthread
@@ -41,11 +40,11 @@ class FixedSelectionItem(selection.SelectionItem):
 selection.SelectionItem = FixedSelectionItem
 
 
-def aoi(value: str | SupportsInt) -> int | None:
+def aoi(value: str | SupportsInt) -> int | NoneType:
     try:
         return int(value)
     except (ValueError, TypeError):
-        return
+        return None
 
 
 def get_item(file: ArchiveContent, **kwargs) -> MDBoxLayout:
@@ -303,7 +302,7 @@ class ArchiveDataView(BoxLayout):
                 item.do_selected_item()
 
     @mainthread
-    def select_all(self, button_instance: MDIconButton = None):
+    def select_all(self, button_instance: MDIconButton | NoneType = None):
         self.all_selected = not self.all_selected
         if self.all_selected:
             self.selected_filenames = [file.name for file in self.showed_rows]

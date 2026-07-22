@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from functools import cache
 
 from kivy.clock import mainthread

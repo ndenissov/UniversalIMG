@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from kivy.properties import ObjectProperty
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDIconButton, MDRoundFlatIconButton

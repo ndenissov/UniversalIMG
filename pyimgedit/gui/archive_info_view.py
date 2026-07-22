@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from kivy.metrics import dp
 from kivy.properties import DictProperty
 from kivy.uix.boxlayout import BoxLayout
