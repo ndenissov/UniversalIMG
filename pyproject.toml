@@ -1,6 +1,6 @@
 [project]
 name = "UniversalIMG"
-version = "1.3.0"
+version = "1.3.1"
 description = "Open & edit .img files for GTA III / VC / SA (+GUI)"
 license = { text = "MIT" }
 authors = [
