@@ -1,5 +1,10 @@
 # Universal IMG
 
+[![PyPI version](https://img.shields.io/pypi/v/UniversalIMG.svg)](https://pypi.org/project/UniversalIMG/)
+[![Downloads](https://static.pepy.tech/badge/UniversalIMG)](https://pepy.tech/project/UniversalIMG)
+[![Python versions](https://img.shields.io/pypi/pyversions/UniversalIMG.svg)](https://pypi.org/project/UniversalIMG/)
+[![License](https://img.shields.io/pypi/l/UniversalIMG.svg)](https://github.com/ndenissov/UniversalIMG/blob/main/LICENSE)
+
 Universal IMG is a Python library and a graphical user interface (GUI) application designed for opening and editing
 `.img` archive files used in Grand Theft Auto III, Vice City, and San Andreas.
 
